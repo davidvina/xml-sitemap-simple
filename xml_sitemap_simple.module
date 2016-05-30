@@ -88,20 +88,20 @@ function xml_sitemap_simple_menu() {
   //output doc on admin
   $items['admin/config/search/sitemap_simple/output'] = array(
     'title' => 'Sitemap output',
-    'page callback' => 'sitemap_admin_output',
+    'page callback' => 'xml_sitemap_simple_admin_output',
     'access arguments' => array('administer site configuration'),
-    'file' => 'xml_sitemap_sitemap_admin_output.inc',
+    'file' => 'xml_sitemap_simple_admin_output.inc',
   );
 
 
   //output doc
-  /*
+  
   $items['sitemap.xml'] = array(
     'page callback' => 'xml_sitemap_simple_output',
     'access callback' => TRUE,
     //'type' => MENU_CALLBACK,
-    'file' => 'xml_sitemap_sitemap_output.inc',
-  );*/
+    'file' => 'xml_sitemap_simple_output.inc',
+  );
 
 
   return $items;
@@ -258,20 +258,6 @@ function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
 
 }
 
-
-
-/**
- * Implements hook_validate().
- * 
- * Error message only if all fields empty.
- *
- * @todo per field validation. 
- */
-
-function xml_sitemap_simple_form_validate($form, &$form_state) {
-
-
-}
 
 
 
@@ -476,3 +462,47 @@ function load_file_by_name($name){
 
 
 
+
+
+
+
+
+
+
+
+/**
+ * Submit handler to write an unmanaged file.
+ *
+ * The key functions used here are:
+ * - file_unmanaged_save_data(), which takes a buffer and saves it to a named
+ *   file, but does not create any kind of tracking record in the database.
+ *   This example uses FILE_EXISTS_REPLACE for the third argument, meaning
+ *   that if there's an existing file at this location, it should be replaced.
+ * - file_create_url(), which converts a URI in the form public://junk.txt or
+ *   private://something/test.txt into a URL like
+ *   http://example.com/sites/default/files/junk.txt.
+ */
+function xml_sitemap_simple_save_file($data = '') {
+
+  $destination = 'public://sitemap.xml';
+
+  // With the unmanaged file we just get a filename back.
+  $filename = file_unmanaged_save_data($data, $destination, FILE_EXISTS_REPLACE);
+
+  if ($filename) {
+    $url = file_create_url($filename);
+    $_SESSION['file_example_default_file'] = $filename;
+    backdrop_set_message(
+      t('Saved file as %filename (accessible via !url, uri=<span id="uri">@uri</span>)',
+        array(
+          '%filename' => $filename,
+          '@uri' => $filename,
+          '!url' => l(t('this URL'), $url),
+        )
+      )
+    );
+  }
+  else {
+    backdrop_set_message(t('Failed to save the file'), 'error');
+  }
+}

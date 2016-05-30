@@ -5,13 +5,15 @@
  *
  * Our menu maps this function to the path 'examples/page_example'.
  */
-function sitemap_admin_output() {
+function xml_sitemap_simple_admin_output() {
+
+  xml_sitemap_simple_save_file('holita');
 
   // sample of render array
   // https://www.drupal.org/node/930760
   // http://themery.com/book/export/html/100
   // elements are liste on system_element_info
-  /*
+  
   $output = array(
     'first_para' => array(
       '#type' => 'markup',
@@ -25,6 +27,7 @@ function sitemap_admin_output() {
       '#theme' => 'item_list',
     ),
   );
+
 
   $page['highlighted']['new_stuff'] = array(
     '#type' => 'container',
@@ -48,16 +51,17 @@ function sitemap_admin_output() {
     ),
     '#attributes' => array('id' => 'my-heading', 'class' => 'hola'), 
   );
-  */
 
 
 
-  $url_list = xml_sitemap_node_url('page');
 
+  //$url_list = xml_sitemap_node_url('page');
+  /*
   $page['url_list'] = array(
     '#items' => $url_list,
     '#theme' => 'item_list',
-  );
+  );*/
 
-  return $page;
+  return $output;
 }
+

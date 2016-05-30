@@ -1,0 +1,478 @@
+<?php
+/**
+ * @file
+ * Module file for xml_sitemap_simple.
+ */
+
+/**
+ * Implements hook_help().
+ * 
+ */
+function xml_sitemap_simple_help($path, $arg) {
+  if ($path == 'admin/help#base_meta') {
+    return t('Base Meta module provides custom page title and meta tags for search engines.');
+  }
+}
+
+/**
+ * Implements hook_menu().
+ *
+ * Provides a default page to explain what this module does.
+ */
+function xml_sitemap_simple_menu() {
+
+  $items = array();
+
+
+   $items['admin/config/search/sitemap_simple'] = array(
+    'title' => 'XML Sitemap Simple',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_node_form'),
+    'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings. Node',
+  //  'access callback' => 'user_access',
+  //  'access arguments' => array('administer base meta settings'),
+    'file' => 'xml_sitemap_simple.admin.inc',
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['admin/config/search/sitemap_simple/default'] = array(
+    'title' => 'Node Pages',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_node_form'),
+    'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings: node',
+    'type' => MENU_DEFAULT_LOCAL_TASK,
+  //  'access callback' => 'user_access',
+  //  'access arguments' => array('administer base meta settings'),
+    'file' => 'xml_sitemap_simple.admin.inc',
+    'weight' => 1,
+  );
+  $items['admin/config/search/sitemap_simple/terms'] = array(
+    'title' => 'Taxonomy Pages',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_terms_form'),
+    'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings: taxonomy terms',
+    'type' => MENU_LOCAL_TASK,
+  //  'access callback' => 'user_access',
+  //  'access arguments' => array('administer base meta settings'),
+    'file' => 'xml_sitemap_simple.admin.inc',
+    'weight' => 2,
+  );
+  $items['admin/config/search/sitemap_simple/views'] = array(
+    'title' => 'Views Pages',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_views_form'),
+    'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings:views',
+    'type' => MENU_LOCAL_TASK,
+  //  'access callback' => 'user_access',
+  //  'access arguments' => array('administer base meta settings'),
+    'file' => 'xml_sitemap_simple.admin.inc',
+    'weight' => 3,
+  );
+  /*
+  $items['admin/config/search/sitemap_simple/menus'] = array(
+    'title' => 'Menus',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_menus_form'),
+    'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings: menus',
+    'type' => MENU_LOCAL_TASK,
+  //  'access callback' => 'user_access',
+  //  'access arguments' => array('administer base meta settings'),
+    'file' => 'xml_sitemap_simple.admin.inc',
+    'weight' => 4,
+  );
+  */
+  //output doc on admin
+  $items['admin/config/search/sitemap_simple/output'] = array(
+    'title' => 'Sitemap output',
+    'page callback' => 'sitemap_admin_output',
+    'access arguments' => array('administer site configuration'),
+    'file' => 'xml_sitemap_sitemap_admin_output.inc',
+  );
+
+
+  //output doc
+  /*
+  $items['sitemap.xml'] = array(
+    'page callback' => 'xml_sitemap_simple_output',
+    'access callback' => TRUE,
+    //'type' => MENU_CALLBACK,
+    'file' => 'xml_sitemap_sitemap_output.inc',
+  );*/
+
+
+  return $items;
+}
+
+
+
+/**
+ * Implements hook_entity_property_info
+ */
+function xml_sitemap_simple_entity_property_info() {
+  $info = array();
+  $properties = &$info['node']['properties'];
+
+  $properties['nid'] = array(
+    'label' => t("Content ID"), 
+    'type' => 'integer', 
+    'description' => t("The unique content ID."),
+  );
+  return $info;
+}
+
+
+
+
+
+
+
+/**
+ * Implements hook_form_alter().
+ *
+ * Adds fieldset to the node create/edit form as topmost vertical tab.
+ *
+ */
+function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
+
+
+  if (
+      (isset($form['#entity_type']) && $form['#entity_type'] == 'node')
+      ||
+      $form_id == 'taxonomy_form_term'
+      ) {
+    
+
+    // comprobamos si hay una configuracion de sitemap associada
+    // para terminos
+    if(isset($form['#term']['tid'])){
+      $sitemap_info = xml_sitemap_simple_get_record('taxonomy_term', $form['#term']['tid']);
+    }
+    // para nodos
+    if(isset($form['nid']['#value'])){
+      $sitemap_info = xml_sitemap_simple_get_record('node', $form['nid']['#value']);
+    }
+
+    // valores por defecto de los campos de sitemap
+    if(isset($sitemap_info)){
+      // cogemos los valores por defecto de la tabla xml_sitemap_simple
+      $default_value_exclude = $sitemap_info->exclude;
+
+      if(isset($sitemap_info->priority)){
+        $default_value_custom_priority = 1;
+
+      }
+      $default_value_priority = $sitemap_info->priority;
+      $default_value_frequency = $sitemap_info->frequency;
+
+    } else {
+      // cogemos los valores por defecto del tipo de nodo o taxonomia
+    }
+
+
+    $form['#validate'][] = 'xml_sitemap_simple_form_validate';
+
+    // mostrar si esta activado para este tipo de contenido
+    $form['xml_sitemap_simple'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Include / exclude in sitemap'),
+        //'#access' => user_access('edit base meta tags'),
+        '#collapsible' => TRUE,
+        '#collapsed' => FALSE,
+        '#tree' => TRUE,
+        '#weight' => 99,
+        '#group' => 'additional_settings',
+        /*
+        '#attached' => array(
+          'js' => array(
+          'vertical-tabs' => backdrop_get_path('module', 'base_meta') . '/js/base_meta.js',
+        ),*/
+      );  
+
+    $form['xml_sitemap_simple']['exclude'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Exclude from sitemap'),
+      '#default_value' => $default_value_exclude,
+      '#description' => t('Exclude this node from sitemap.xml. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
+    );
+
+
+    $form['xml_sitemap_simple']['custom_wrapper'] = array(
+      '#type' => 'container',
+      '#states' => array(
+        'visible' => array(
+          'input[name="xml_sitemap_simple[exclude]"]' => array('checked' => FALSE),
+        ),
+      ),
+    ); 
+
+    $form['xml_sitemap_simple']['custom_wrapper']['custom_priority'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Custom priority and change frequency'),
+      '#default_value' => $default_value_custom_priority,
+      '#description' => t('Optional. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
+    );
+
+    $form['xml_sitemap_simple']['custom_wrapper']['priority'] = array(
+      '#type' => 'number',
+      '#min' => 0.0,
+      '#max' => 1.0,
+      '#step' => 0.1,
+      '#title' => t('Priority'),
+      '#default_value' => $default_value_priority,
+      '#description' => t('The priority tag is used in XML sitemaps, by the webmaster, to signal the importance of individual pages in the website to Google and other search engines.'),
+      '#states' => array(
+        'disabled' => array(
+          'input[name="xml_sitemap_simple[custom_priority]"]' => array('checked' => FALSE),
+        ),
+      ),
+
+    );
+
+    $form['xml_sitemap_simple']['custom_wrapper']['frequency'] = array(
+      '#type' => 'select',
+      '#title' => t('Change frequency'),
+      '#options' => array(
+        'never' => t('never'),
+        'yearly' => t('yearly'),
+        'monthly' => t('monthly'),
+        'weekly' => t('weekly'),
+        'daily' => t('daily'),
+        'hourly' => t('hourly'),
+        'always' => t('always'),
+      ),
+      '#default_value' => $default_value_frequency,
+      '#description' => t('The priority tag is used in XML sitemaps, by the webmaster, to signal the importance of individual pages in the website to Google and other search engines.'),
+      '#states' => array(
+        'disabled' => array(
+          'input[name="xml_sitemap_simple[custom_priority]"]' => array('checked' => FALSE),
+        ),
+      ),
+
+    );
+
+  }
+
+}
+
+
+
+/**
+ * Implements hook_validate().
+ * 
+ * Error message only if all fields empty.
+ *
+ * @todo per field validation. 
+ */
+
+function xml_sitemap_simple_form_validate($form, &$form_state) {
+
+
+}
+
+
+
+
+function xml_sitemap_simple_record_insert($entity_type, $entity_id, $sitemap_data) {
+
+    // guardar solo si exclude o custom priority tienen valor 1
+    if($sitemap_data['exclude'] == 1 || $sitemap_data['custom_wrapper']['custom_priority'] == 1){
+
+        
+        // si se excluye del sitemap se eliman los valores de custom_priority  
+        if($sitemap_data['exclude'] == 1){
+
+          //$sitemap_data['custom_priority'] = 0;
+          $sitemap_data['custom_wrapper']['priority'] = NULL;
+          $sitemap_data['custom_wrapper']['frequency'] = NULL;
+        }
+
+      
+        $found = db_select('xml_sitemap_simple', 'xss')
+          ->fields('xss')
+          ->condition('entity_type', $entity_type, '=')
+          ->condition('e_id', $entity_id, '=')
+          ->execute()
+          ->fetchObject();
+       
+   
+        if(!$found){
+            // doen't exists
+            db_insert('xml_sitemap_simple')
+                ->fields(array(
+                  'entity_type' => $entity_type,
+                  'e_id' => $entity_id,
+                  'exclude' => $sitemap_data['exclude'],
+                  'priority' => $sitemap_data['custom_wrapper']['priority'],
+                  'frequency' => $sitemap_data['custom_wrapper']['frequency'],
+                ))
+                ->execute();
+        } else {
+            // element exists
+            db_update('xml_sitemap_simple')
+                ->fields(array(
+                  'entity_type' => $entity_type,
+                  'e_id' => $entity_id,
+                  'exclude' => $sitemap_data['exclude'],
+                  'priority' => $sitemap_data['custom_wrapper']['priority'],
+                  'frequency' => $sitemap_data['custom_wrapper']['frequency'],
+                ))
+                ->condition('entity_type', $entity_type, '=')
+                ->condition('e_id', $entity_id, '=')
+                ->execute();
+        }
+    }
+
+
+  if($sitemap_data['exclude'] == 0 && $sitemap_data['custom_wrapper']['custom_priority'] == 0){
+    // borramos
+    xml_sitemap_simple_record_delete($entity_type, $entity_id);  
+  }
+
+}
+
+// Delete db record associated with this node (if any).
+function xml_sitemap_simple_record_delete($entity_type, $entity_id) {
+
+    $result = db_select('xml_sitemap_simple', 'xss')
+      ->fields('xss')
+      ->condition('entity_type', $entity_type, '=')
+      ->condition('e_id', $entity_id, '=')
+      ->execute()
+      ->fetchObject();
+
+
+    if (is_object($result)) {
+      $id = $result->id;
+      db_delete('xml_sitemap_simple')
+          ->condition('id', $id)
+          ->execute();
+    }
+
+}
+
+// Delete db record associated with this node (if any).
+function xml_sitemap_simple_get_record($entity_type, $entity_id) {
+
+    $result = db_select('xml_sitemap_simple', 'xss')
+      ->fields('xss')
+      ->condition('entity_type', $entity_type, '=')
+      ->condition('e_id', $entity_id, '=')
+      ->execute()
+      ->fetchObject();
+
+    return $result;
+
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function xml_sitemap_simple_node_insert(Node $node) {
+  xml_sitemap_simple_record_insert('node', $node->nid, $node->xml_sitemap_simple);
+}
+
+
+/**
+ * Implements hook_node_update().
+ */
+function xml_sitemap_simple_node_update(Node $node) {
+  xml_sitemap_simple_record_insert('node', $node->nid, $node->xml_sitemap_simple);
+}
+
+
+/**
+ * Implements hook_node_predelete().
+ */
+function xml_sitemap_simple_node_predelete(Node $node) {
+  xml_sitemap_simple_record_delete('node', $node->nid);
+}
+
+
+/**
+ * Implements hook_taxonomy_term_insert().
+ */
+function xml_sitemap_simple_taxonomy_term_insert($term) {
+  xml_sitemap_simple_record_insert('taxonomy_term', $term->tid, $term->xml_sitemap_simple);
+}
+
+
+/**
+ * Implements hook_taxonomy_term_update().
+ */
+function xml_sitemap_simple_taxonomy_term_update($term) {
+  xml_sitemap_simple_record_insert('taxonomy_term', $term->tid, $term->xml_sitemap_simple);
+}
+
+
+/**
+ * Implements hook_taxonomy_term_predelete().
+ */
+function xml_sitemap_simple_taxonomy_term_predelete($term) {
+  xml_sitemap_simple_record_delete('taxonomy_term', $term->tid, $term->xml_sitemap_simple);
+}
+
+
+
+
+
+
+
+
+// funcion que devuelve las url de los nodos
+function xml_sitemap_node_url($node_type){
+ 
+  $nodeUrlAlias = array();
+  $node_ids = query_id_nodes($node_type);
+
+  global $base_url;
+
+
+  // loop over node ids
+  foreach ($node_ids as $key) {
+    $nodeUrlAlias[] = drupal_get_path_alias($base_url."/node/".$key);
+  }
+
+  return $nodeUrlAlias;
+
+}
+
+
+
+// funcion que devuelve las ids de nodos publicados
+function query_id_nodes($bundle_type){
+
+     $query = new EntityFieldQuery();
+     $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', $bundle_type)
+      ->propertyCondition('status', 1);
+  
+      $result = $query->execute();
+      $result = $result['node'];
+
+      $keys = array();
+      $keys = array_keys($result);
+
+      return $keys;
+}
+
+
+// devuelve id archivo
+// para load_file($id)
+function load_file_by_name($name){
+  $query = new EntityFieldQuery();
+  $query->entityCondition('entity_type', 'file')
+        ->propertyCondition('filename', $name);
+  $result = $query->execute();
+  $result = $result['file'];
+  $result = array_values($result)[0]; 
+  $result = $result->fid;
+
+  return $result;
+}
+
+
+

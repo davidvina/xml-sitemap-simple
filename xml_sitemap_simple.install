@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ * Define SQL table for xml_sitemap_simple
+ */
+function xml_sitemap_simple_schema() {
+  $schema = array();
+
+  $schema['xml_sitemap_simple'] = array(
+    'description' => 'Table to sitemap values for entities: nodes, terms.',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Unique sitemap_simple identifier.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+
+      'entity_type' => array(
+        'description' => 'Entity type name.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+
+      'e_id' => array(
+        'description' => 'The entiy id.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+/*
+      'path_alias' => array(
+        'description' => 'Path alias for set meta tags and page title.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+*/
+/*
+      'langcode' => array(
+        'description' => 'The language code of correspond node.',
+        'type' => 'varchar',
+        'length' => 12,
+        'not null' => FALSE,
+        'default' => '',
+      ),
+*/
+      'exclude' => array(
+        'description' => 'A boolean that represents if the url is excluded from the sitemap.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+
+      'priority' => array(
+        'description' => 'Meta keywords content.',
+        'type' => 'float',
+        'size' => 'tiny',
+        'not null' => FALSE,
+        //'default' => 1,
+      ),
+
+      'frequency' => array(
+        'description' => 'Meta keywords content.',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      /*
+      'uid' => array(
+        'description' => 'Author identifier.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),*/
+/*
+      'changed' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Unix timestamp of when record occurred.',
+      ),
+*/
+    ),
+    'primary key' => array('id'),
+  );
+
+  return $schema;
+}
+

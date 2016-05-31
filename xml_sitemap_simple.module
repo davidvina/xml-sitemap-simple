@@ -139,6 +139,7 @@ function xml_sitemap_simple_entity_property_info() {
 function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
 
 
+
   if (
       (isset($form['#entity_type']) && $form['#entity_type'] == 'node')
       ||
@@ -146,113 +147,141 @@ function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
       ) {
     
 
-    // comprobamos si hay una configuracion de sitemap associada
-    // para terminos
-    if(isset($form['#term']['tid'])){
-      $sitemap_info = xml_sitemap_simple_get_record('taxonomy_term', $form['#term']['tid']);
-    }
-    // para nodos
-    if(isset($form['nid']['#value'])){
-      $sitemap_info = xml_sitemap_simple_get_record('node', $form['nid']['#value']);
+    // valores por defecto para nodos
+    if(isset($form['#entity_type']) && $form['#entity_type'] == 'node'){
+        $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'nodes');
+        $sitemap_config_values = $sitemap_config_values[$form['#bundle']];
     }
 
-    // valores por defecto de los campos de sitemap
-    if(isset($sitemap_info)){
-      // cogemos los valores por defecto de la tabla xml_sitemap_simple
-      $default_value_exclude = $sitemap_info->exclude;
+    // valores por defecto para taxonomias
 
-      if(isset($sitemap_info->priority)){
-        $default_value_custom_priority = 1;
-
-      }
-      $default_value_priority = $sitemap_info->priority;
-      $default_value_frequency = $sitemap_info->frequency;
-
-    } else {
-      // cogemos los valores por defecto del tipo de nodo o taxonomia
+    if(isset($form['#entity_type']) && $form['#entity_type'] == 'taxonomy_term'){
+      $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'vocabularies');
+      $sitemap_config_values = $sitemap_config_values[$form['#bundle']];
     }
 
+    if($sitemap_config_values['active'] == 1){
 
-    $form['#validate'][] = 'xml_sitemap_simple_form_validate';
+        // associamos valores por defecto
+        $default_value_priority = $sitemap_config_values['priority'];
+        $default_value_frequency = $sitemap_config_values['frequency'];
 
-    // mostrar si esta activado para este tipo de contenido
-    $form['xml_sitemap_simple'] = array(
-        '#type' => 'fieldset',
-        '#title' => t('Include / exclude in sitemap'),
-        //'#access' => user_access('edit base meta tags'),
-        '#collapsible' => TRUE,
-        '#collapsed' => FALSE,
-        '#tree' => TRUE,
-        '#weight' => 99,
-        '#group' => 'additional_settings',
-        /*
-        '#attached' => array(
-          'js' => array(
-          'vertical-tabs' => backdrop_get_path('module', 'base_meta') . '/js/base_meta.js',
-        ),*/
-      );  
+        // comprobamos si hay una configuracion de sitemap associada
+        // para terminos
+        if(isset($form['#term']['tid'])){
+          $sitemap_db_info = xml_sitemap_simple_get_record('taxonomy_term', $form['#term']['tid']);
+        }
+        // para nodos
+        if(isset($form['nid']['#value'])){
+          $sitemap_db_info = xml_sitemap_simple_get_record('node', $form['nid']['#value']);
+        }
 
-    $form['xml_sitemap_simple']['exclude'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Exclude from sitemap'),
-      '#default_value' => $default_value_exclude,
-      '#description' => t('Exclude this node from sitemap.xml. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
-    );
+        // valores por defecto de los campos de sitemap
+        // guardados en base de datos
+        if(isset($sitemap_db_info)){
+          // cogemos los valores por defecto de la tabla xml_sitemap_simple
+          $default_value_exclude = $sitemap_db_info->exclude;
+
+          // sobreescribimos valores por defecto
+          if(isset($sitemap_db_info->priority)){
+            $default_value_custom_priority = 1;
+            $default_value_priority = $sitemap_db_info->priority;
+          }
+
+          if(isset($sitemap_db_info->frequency)){
+            $default_value_frequency = $sitemap_db_info->frequency;
+          }
+          
+
+        } 
 
 
-    $form['xml_sitemap_simple']['custom_wrapper'] = array(
-      '#type' => 'container',
-      '#states' => array(
-        'visible' => array(
-          'input[name="xml_sitemap_simple[exclude]"]' => array('checked' => FALSE),
-        ),
-      ),
-    ); 
 
-    $form['xml_sitemap_simple']['custom_wrapper']['custom_priority'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Custom priority and change frequency'),
-      '#default_value' => $default_value_custom_priority,
-      '#description' => t('Optional. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
-    );
+        //$form['#validate'][] = 'xml_sitemap_simple_form_validate';
 
-    $form['xml_sitemap_simple']['custom_wrapper']['priority'] = array(
-      '#type' => 'number',
-      '#min' => 0.0,
-      '#max' => 1.0,
-      '#step' => 0.1,
-      '#title' => t('Priority'),
-      '#default_value' => $default_value_priority,
-      '#description' => t('The priority tag is used in XML sitemaps, by the webmaster, to signal the importance of individual pages in the website to Google and other search engines.'),
-      '#states' => array(
-        'disabled' => array(
-          'input[name="xml_sitemap_simple[custom_priority]"]' => array('checked' => FALSE),
-        ),
-      ),
+        // mostrar si esta activado para este tipo de contenido
+        $form['xml_sitemap_simple'] = array(
+            '#type' => 'fieldset',
+            '#title' => t('Include / exclude in sitemap'),
+            //'#access' => user_access('edit base meta tags'),
+            '#collapsible' => TRUE,
+            '#collapsed' => FALSE,
+            '#tree' => TRUE,
+            '#weight' => 99,
+            '#group' => 'additional_settings',
+            /*
+            '#attached' => array(
+              'js' => array(
+              'vertical-tabs' => backdrop_get_path('module', 'base_meta') . '/js/base_meta.js',
+            ),*/
+          );  
 
-    );
+        $form['xml_sitemap_simple']['exclude'] = array(
+          '#type' => 'checkbox',
+          '#title' => t('Exclude from sitemap'),
+          '#default_value' => $default_value_exclude,
+          '#description' => t('Exclude this node from sitemap.xml. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
+        );
 
-    $form['xml_sitemap_simple']['custom_wrapper']['frequency'] = array(
-      '#type' => 'select',
-      '#title' => t('Change frequency'),
-      '#options' => array(
-        'never' => t('never'),
-        'yearly' => t('yearly'),
-        'monthly' => t('monthly'),
-        'weekly' => t('weekly'),
-        'daily' => t('daily'),
-        'hourly' => t('hourly'),
-        'always' => t('always'),
-      ),
-      '#default_value' => $default_value_frequency,
-      '#description' => t('The priority tag is used in XML sitemaps, by the webmaster, to signal the importance of individual pages in the website to Google and other search engines.'),
-      '#states' => array(
-        'disabled' => array(
-          'input[name="xml_sitemap_simple[custom_priority]"]' => array('checked' => FALSE),
-        ),
-      ),
 
-    );
+        $form['xml_sitemap_simple']['custom_wrapper'] = array(
+          '#type' => 'container',
+          '#states' => array(
+            'visible' => array(
+              'input[name="xml_sitemap_simple[exclude]"]' => array('checked' => FALSE),
+            ),
+          ),
+        ); 
+
+        $form['xml_sitemap_simple']['custom_wrapper']['custom_priority'] = array(
+          '#type' => 'checkbox',
+          '#title' => t('Custom priority and change frequency'),
+          '#default_value' => $default_value_custom_priority,
+          '#description' => t('Optional. If not checked, <a href="@url">default values</a> will be used', array('@url' => url('admin/config/search/sitemap_simple'))),
+        );
+
+
+        $form['xml_sitemap_simple']['custom_wrapper']['priority'] = array(
+          '#type' => 'number',
+          '#min' => 0.0,
+          '#max' => 1.0,
+          '#step' => 0.1,
+          '#title' => t('Priority'),
+          '#default_value' => $default_value_priority,
+          '#description' => t('The priority tag is used in XML sitemaps, by the webmaster, to signal the importance of individual pages in the website to Google and other search engines.'),
+          '#states' => array(
+            'disabled' => array(
+              'input[name="xml_sitemap_simple[custom_wrapper][custom_priority]"]' => array('checked' => FALSE),
+            ),
+          ),
+
+        );
+
+        $form['xml_sitemap_simple']['custom_wrapper']['frequency'] = array(
+          '#type' => 'select',
+          '#title' => t('Change frequency'),
+          '#options' => array(
+            'never' => t('never'),
+            'yearly' => t('yearly'),
+            'monthly' => t('monthly'),
+            'weekly' => t('weekly'),
+            'daily' => t('daily'),
+            'hourly' => t('hourly'),
+            'always' => t('always'),
+          ),
+          '#default_value' => $default_value_frequency,
+          '#description' => t('How frequently the page is likely to change.'),
+          '#states' => array(
+            'disabled' => array(
+              'input[name="xml_sitemap_simple[custom_wrapper][custom_priority]"]' => array('checked' => FALSE),
+            ),
+          ),
+
+        );
+
+
+    }
+    
 
   }
 

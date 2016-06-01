@@ -205,7 +205,7 @@ function xml_sitemap_simple_admin_node_form_submit($form, $form_state){
     $nodeData[$nodetype] = $dataToSave;
   }
 
-  $config->set('nodes', $nodeData);
+  $config->set('node', $nodeData);
   $config->save();
 }
 
@@ -253,7 +253,7 @@ function xml_sitemap_simple_admin_terms_form_submit($form, &$form_state){
     $vocabularyData[$vocabulary->machine_name] = $dataToSave;
   }
 
-  $config->set('vocabularies', $vocabularyData);
+  $config->set('taxonomy_term', $vocabularyData);
   $config->save();
 }
 

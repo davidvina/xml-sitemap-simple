@@ -88,7 +88,9 @@ function xml_sitemap_simple_menu() {
   //output doc on admin
   $items['admin/config/search/sitemap_simple/output'] = array(
     'title' => 'Sitemap output',
-    'page callback' => 'xml_sitemap_simple_admin_output',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('xml_sitemap_simple_admin_output_form'),
+    'access callback' => TRUE,
     'access arguments' => array('administer site configuration'),
     'file' => 'xml_sitemap_simple_admin_output.inc',
   );
@@ -149,14 +151,14 @@ function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
 
     // valores por defecto para nodos
     if(isset($form['#entity_type']) && $form['#entity_type'] == 'node'){
-        $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'nodes');
+        $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'node');
         $sitemap_config_values = $sitemap_config_values[$form['#bundle']];
     }
 
     // valores por defecto para taxonomias
 
     if(isset($form['#entity_type']) && $form['#entity_type'] == 'taxonomy_term'){
-      $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'vocabularies');
+      $sitemap_config_values = config_get('xml_sitemap_simple.settings', 'taxonomy_term');
       $sitemap_config_values = $sitemap_config_values[$form['#bundle']];
     }
 
@@ -373,15 +375,18 @@ function xml_sitemap_simple_record_delete($entity_type, $entity_id) {
 function xml_sitemap_simple_get_record($entity_type, $entity_id) {
 
     $result = db_select('xml_sitemap_simple', 'xss')
-      ->fields('xss')
-      ->condition('entity_type', $entity_type, '=')
-      ->condition('e_id', $entity_id, '=')
+      ->fields('xss', array('exclude','priority','frequency'))
+      ->condition('xss.entity_type', $entity_type, '=')
+      ->condition('xss.e_id', $entity_id, '=')
       ->execute()
       ->fetchObject();
 
     return $result;
 
 }
+
+
+
 
 /**
  * Implements hook_node_insert().
@@ -437,42 +442,7 @@ function xml_sitemap_simple_taxonomy_term_predelete($term) {
 
 
 
-// funcion que devuelve las url de los nodos
-function xml_sitemap_node_url($node_type){
- 
-  $nodeUrlAlias = array();
-  $node_ids = query_id_nodes($node_type);
 
-  global $base_url;
-
-
-  // loop over node ids
-  foreach ($node_ids as $key) {
-    $nodeUrlAlias[] = drupal_get_path_alias($base_url."/node/".$key);
-  }
-
-  return $nodeUrlAlias;
-
-}
-
-
-
-// funcion que devuelve las ids de nodos publicados
-function query_id_nodes($bundle_type){
-
-     $query = new EntityFieldQuery();
-     $query->entityCondition('entity_type', 'node')
-      ->entityCondition('bundle', $bundle_type)
-      ->propertyCondition('status', 1);
-  
-      $result = $query->execute();
-      $result = $result['node'];
-
-      $keys = array();
-      $keys = array_keys($result);
-
-      return $keys;
-}
 
 
 // devuelve id archivo

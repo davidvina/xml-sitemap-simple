@@ -1,8 +1,9 @@
 <?php
 
 function xml_sitemap_simple_output(){
-  //$output = 'hola';
 
+  $data = load_sitemap_xml_file();
+  
   $headers = array(
     'Content-type' => 'text/xml; charset=utf-8',
     //'Content-length' => filesize($file),
@@ -17,18 +18,22 @@ function xml_sitemap_simple_output(){
     backdrop_add_http_header($name, $value);
   } 
 
-  $output.= "<?xml version='1.0' encoding='UTF-8' ?>\n";
-  $output.= " <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>\n";
-  $output.= "   <url>\n";
-  $output.= "   <loc>http://localhost/hdcvi_ok/</loc>\n";
-  $output.= "   <lastmod>2004-12-23T18:00:15+00:00</lastmod>\n";
-  $outpur.= "   <changefreq></changefreq>\n";
-  $output.= "   <priority>0.3</priority>\n";
-  $output.= "   </url>\n";
-  $output.= " </urlset>\n";
-
- // return $output;
+  $output = $data;
   print $output;
+
   backdrop_exit();
+  
+}
+
+
+function load_sitemap_xml_file(){
+  $uri = 'public://sitemap.xml';
+
+  if (!is_file($uri)) {
+    backdrop_set_message(t('The file %uri does not exist', array('%uri' => $uri)), 'error');
+    return;
+  }
+
+  return file_get_contents($uri);
 
 }

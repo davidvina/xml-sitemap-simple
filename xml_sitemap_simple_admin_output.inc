@@ -7,61 +7,32 @@
  */
 function xml_sitemap_simple_admin_output_form($form, $form_state) {
 
-  //xml_sitemap_simple_save_file('holita');
+  $form = array();
 
-
-
-  $nodes_sitemap = get_values_sitemap();
-  dpm($nodes_sitemap);
-
-  //$terms_sitemap = get_values_sitemap('taxonomy_term');
-  //dpm($terms_sitemap);
-
-  // sample of render array
-  // https://www.drupal.org/node/930760
-  // http://themery.com/book/export/html/100
-  // elements are liste on system_element_info
- 
-
-    /*
-  $form = array(
-    'first_para' => array(
-      '#type' => 'markup',
-      '#prefix' => 'hola',
-      '#markup' => 'A paragraph about some stuff...',
-      '#suffix' => 'adios',
-      '#theme_wrappers' => 'lala',
-    ),
-    'second_para' => array(
-      '#items' => array('first item', 'second item', 'third item'),
-      '#theme' => 'item_list',
-    ),
-  );
-
-
-  $page['highlighted']['new_stuff'] = array(
-    '#type' => 'container',
-    '#attributes' => array('class' => 'my-container'),
-  );
+  $sitemap_data = array_merge(get_values_sitemap('node'), get_values_sitemap('taxonomy_term')); 
   
-  $page['highlighted']['new_stuff']['heading'] = array(
-    '#type' => 'head_tag',
-    '#tag' => 'h2',
-    '#value' => t('Heading'),
-    '#attributes' => array('id' => 'my-heading'),
+  // ordenamos array
+  $sitemap_data = array_orderby($sitemap_data, 'priority', SORT_DESC, 'lastmod', SORT_DESC);
+
+
+  $form['sitemap_wrapper'] = array(
+    '#type' => 'markup',
+    '#prefix' => '<ul>',
+    '#suffix' => '</ul>',
   );
 
 
-  $page['highlighted']['new_stuff']['list'] = array(
-    '#theme' => 'item_list',
-    '#items' => array(
-      'First item',
-      'Second item',
-      'Third item',
-    ),
-    '#attributes' => array('id' => 'my-heading', 'class' => 'hola'), 
-  );
-  */
+  foreach ($sitemap_data as $key => $value) {
+    # code...
+    //dpm($value);
+
+    $form['sitemap_wrapper']['element'.$key] = array(
+      '#type' => 'markup',
+      '#prefix' => '<li>',
+      '#markup' => '<p>loc: '.$value['loc'].'<br>'.'lastmod: '.$value['lastmod'].'<br>'.'changefreq: '.$value['changefreq'].'<br>'.'priority: '.$value['priority'].'<br></p>',
+      '#suffix' => '</li>',
+    );
+  }
 
 
     // botones
@@ -83,7 +54,8 @@ function xml_sitemap_simple_admin_output_form($form, $form_state) {
  */
 function xml_sitemap_simple_admin_output_form_submit($form, $form_state){
 
-  //create_node_sitemap();
+  create_sitemap();
+  
 }
 
 
@@ -105,14 +77,14 @@ function get_values_sitemap($entityType = 'node'){
         switch ($entityType) {
           case 'node':
             $ids = query_id_nodes($bundle);
+            $path_base = 'node/';
             break;
           
           case 'taxonomy_term':
             $ids = query_id_terms($bundle);
+            $path_base = 'taxonomy/term/';
             break;
         }
-
-
 
         // get urls from nodes_ids
         foreach ($ids as $id) {  
@@ -136,9 +108,12 @@ function get_values_sitemap($entityType = 'node'){
             } 
 
             if(!$excludeSitemap){
-              $sitemap_array[$id] = array(
-                  'loc' => $base_url.'/'.backdrop_get_path_alias("node/".$id),
-                  'lastmod' => get_last_modification($id),
+              $sitemap_array[] = array(
+                  'type' => $entityType,
+                  'bundle' => $bundle,
+                  'id' => $id,
+                  'loc' => $base_url.'/'.backdrop_get_path_alias($path_base.$id),
+                  'lastmod' => get_last_modification($id, $entityType),
                   'changefreq' => $frequency,
                   'priority' => $priority,
               );
@@ -151,10 +126,6 @@ function get_values_sitemap($entityType = 'node'){
   return $sitemap_array;
 
 }
-
-
-
-
 
 
 // funcion que devuelve las ids de nodos publicados
@@ -175,37 +146,33 @@ function query_id_nodes($bundle_type){
 }
 
 
+
 function query_id_terms($bundle_type){
-
-     /*
-     $query = new EntityFieldQuery();
-     $query->entityCondition('entity_type', 'taxonomy_term')
+     
+    $query_all_terms = new EntityFieldQuery();
+    $query_all_terms->entityCondition('entity_type', 'taxonomy_term')
       ->entityCondition('bundle', $bundle_type);
-      //->propertyCondition('status', 1);
-  
-      $result = $query->execute();
-      dpm($result);
 
+    $result_all_terms = $query_all_terms->execute();
+    $result_all_terms = $result_all_terms['taxonomy_term'];
 
-      //$result = $result['node'];
+    // get all terms ids
+    $tids = array_keys($result_all_terms);
 
-      //$keys = array();
-      //$keys = array_keys($result);
+    // look if term has associated nodes
+    foreach ($tids as $tid) {
+      # code...
+      $node_terms = taxonomy_select_nodes($tid, FALSE, FALSE);
+      // if hasn't associated nodes
+      if(count($node_terms) == 0){
+        unset($tids[$tid]);
+      }
 
-      return $keys;
-      */
-        $query = db_select('taxonomy_index', 't')
-         // ->condition('tid', $tids, 'IN')
+    }
 
-          //->join('node', 'n', 't.nid = n.nid')
-          ->fields('t', array('tid', 'created'))
-          //->condition('n.status', 1, '=')
-          ->execute()
-          ->fetchAssoc();
-        //$query->condition('n.language', $langs, 'IN');
-
-        dpm($query);
-
+    // only returns taxonomies ids with associated data
+    return $tids;
+      
 }
 
 
@@ -213,16 +180,37 @@ function query_id_terms($bundle_type){
 
 
 // funcion para sacar fecha última modificacion
-function get_last_modification($id){
+function get_last_modification($id, $entityType = 'node'){
 
-    // for nodes
-    $result = db_select('node', 'n')
-    ->fields('n', array('changed'))
-    ->condition('n.nid', $id)
-    ->execute()
-    ->fetchAssoc();
+  switch ($entityType) {
+    case 'node':
+        // for nodes
+        $result = db_select('node', 'n')
+        ->fields('n', array('changed'))
+        ->condition('n.nid', $id)
+        ->execute()
+        ->fetchAssoc();
 
-    return date('Y-m-d', $result['changed']);
+      break;
+
+    case 'taxonomy_term':
+
+      $query = db_select('node', 'n');
+      $query->join('taxonomy_index', 't', 't.nid = n.nid');
+      $query->fields('n', array('changed'));
+      //$query->fields('t', array('tid'));
+      $query->condition('t.tid',$id,'=');
+      $query->orderBy('n.changed', 'DESC');
+      $result = $query->execute()->fetchAssoc();
+
+      break;
+    
+  }
+
+
+  return date('Y-m-d', $result['changed']);
+
+
 }
 
 
@@ -245,6 +233,22 @@ function xml_sitemap_node_url($node_type){
 }
 
 
-
-
+/*
+* Funcion para ordenar arrays
+*/
+function array_orderby() {
+    $args = func_get_args();
+    $data = array_shift($args);
+    foreach ($args as $n => $field) {
+        if (is_string($field)) {
+            $tmp = array();
+            foreach ($data as $key => $row)
+                $tmp[$key] = $row[$field];
+            $args[$n] = $tmp;
+            }
+    }
+    $args[] = &$data;
+    call_user_func_array('array_multisort', $args);
+    return array_pop($args);
+}
 

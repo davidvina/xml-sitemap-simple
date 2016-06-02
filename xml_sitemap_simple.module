@@ -440,9 +440,216 @@ function xml_sitemap_simple_taxonomy_term_predelete($term) {
 
 
 
+/*
+**********************************************************************************************
+*   Functions to generate sitemap
+*
+*/
 
 
 
+function get_values_sitemap($entityType = 'node'){
+    // setting data nodes
+  $config_values = config_get('xml_sitemap_simple.settings', $entityType);
+
+  $sitemap_array = array();  
+
+  global $base_url;
+
+  foreach ($config_values as $bundle => $value) {
+    
+    // create sitemap only for active node types
+     if($value['active'] == 1){
+
+        // take nodes from bundle
+        switch ($entityType) {
+          case 'node':
+            $ids = query_id_nodes($bundle);
+            $path_base = 'node/';
+            break;
+          
+          case 'taxonomy_term':
+            $ids = query_id_terms($bundle);
+            $path_base = 'taxonomy/term/';
+            break;
+        }
+
+        // get urls from nodes_ids
+        foreach ($ids as $id) {  
+
+
+            $excludeSitemap = 0;
+            $priority = $value['priority'];
+            $frequency = $value['frequency'];
+
+            // look if there is a custom sitemap per node
+            $custom_value = xml_sitemap_simple_get_record($entityType, $id);
+
+            
+            if(!empty($custom_value)){
+              // if exist change values
+              $excludeSitemap = $custom_value->exclude;
+              if(!$excludeSitemap){
+                $priority = $custom_value->priority;
+                $frequency = $custom_value->frequency;
+              }
+            } 
+
+            if(!$excludeSitemap){
+              $sitemap_array[] = array(
+                  'type' => $entityType,
+                  'bundle' => $bundle,
+                  'id' => $id,
+                  'loc' => $base_url.'/'.backdrop_get_path_alias($path_base.$id),
+                  'lastmod' => get_last_modification($id, $entityType),
+                  'changefreq' => $frequency,
+                  'priority' => $priority,
+              );
+            }
+            
+        }
+     }
+  }
+
+  return $sitemap_array;
+
+}
+
+
+// funcion que devuelve las ids de nodos publicados
+function query_id_nodes($bundle_type){
+
+     $query = new EntityFieldQuery();
+     $query->entityCondition('entity_type', 'node')
+      ->entityCondition('bundle', $bundle_type)
+      ->propertyCondition('status', 1);
+  
+      $result = $query->execute();
+      $result = $result['node'];
+
+      $keys = array();
+      $keys = array_keys($result);
+
+      return $keys;
+}
+
+
+
+function query_id_terms($bundle_type){
+     
+    $query_all_terms = new EntityFieldQuery();
+    $query_all_terms->entityCondition('entity_type', 'taxonomy_term')
+      ->entityCondition('bundle', $bundle_type);
+
+    $result_all_terms = $query_all_terms->execute();
+    $result_all_terms = $result_all_terms['taxonomy_term'];
+
+    // get all terms ids
+    $tids = array_keys($result_all_terms);
+
+    // look if term has associated nodes
+    foreach ($tids as $tid) {
+      # code...
+      $node_terms = taxonomy_select_nodes($tid, FALSE, FALSE);
+      // if hasn't associated nodes
+      if(count($node_terms) == 0){
+        unset($tids[$tid]);
+      }
+
+    }
+
+    // only returns taxonomies ids with associated data
+    return $tids;
+      
+}
+
+
+// funcion para sacar fecha última modificacion
+function get_last_modification($id, $entityType = 'node'){
+
+  switch ($entityType) {
+    case 'node':
+        // for nodes
+        $result = db_select('node', 'n')
+        ->fields('n', array('changed'))
+        ->condition('n.nid', $id)
+        ->execute()
+        ->fetchAssoc();
+
+      break;
+
+    case 'taxonomy_term':
+
+      $query = db_select('node', 'n');
+      $query->join('taxonomy_index', 't', 't.nid = n.nid');
+      $query->fields('n', array('changed'));
+      //$query->fields('t', array('tid'));
+      $query->condition('t.tid',$id,'=');
+      $query->orderBy('n.changed', 'DESC');
+      $result = $query->execute()->fetchAssoc();
+
+      break;
+    
+  }
+
+  return date('Y-m-d', $result['changed']);
+}
+
+
+/*
+* Funcion para ordenar arrays
+*/
+function array_orderby() {
+    $args = func_get_args();
+    $data = array_shift($args);
+    foreach ($args as $n => $field) {
+        if (is_string($field)) {
+            $tmp = array();
+            foreach ($data as $key => $row)
+                $tmp[$key] = $row[$field];
+            $args[$n] = $tmp;
+            }
+    }
+    $args[] = &$data;
+    call_user_func_array('array_multisort', $args);
+    return array_pop($args);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+**********************************************************************************************
+*   Functions to generate sitemap
+*
+*/
 
 
 // devuelve id archivo
@@ -463,9 +670,40 @@ function load_file_by_name($name){
 
 
 
+/*
+function xml_sitemap_simple_output($data = array()){
+  //$output = 'hola';
 
+  $headers = array(
+    'Content-type' => 'text/xml; charset=utf-8',
+    //'Content-length' => filesize($file),
+    'Last-modified' => '$last_modified',
+    //'Etag' => '$etag',
+    //'Expires' => 'gmdate(DATE_RFC1123, $mtime + variable_get( 0))',
+    //'Cache-Control' => 'must-revalidate',
+    'X-Robots-Tag' => 'noindex, follow',
+  );
 
+  foreach ($headers as $name => $value) {
+    backdrop_add_http_header($name, $value);
+  } 
 
+  $output.= "<?xml version='1.0' encoding='UTF-8' ?>\n";
+  $output.= " <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>\n";
+  $output.= "   <url>\n";
+  $output.= "   <loc>http://localhost/hdcvi_ok/</loc>\n";
+  $output.= "   <lastmod>2004-12-23T18:00:15+00:00</lastmod>\n";
+  $outpur.= "   <changefreq></changefreq>\n";
+  $output.= "   <priority>0.3</priority>\n";
+  $output.= "   </url>\n";
+  $output.= " </urlset>\n";
+
+ // return $output;
+  print $output;
+  backdrop_exit();
+
+}
+*/
 
 
 
@@ -480,13 +718,66 @@ function load_file_by_name($name){
  * - file_create_url(), which converts a URI in the form public://junk.txt or
  *   private://something/test.txt into a URL like
  *   http://example.com/sites/default/files/junk.txt.
- */
+ 
 function xml_sitemap_simple_save_file($data = '') {
 
   $destination = 'public://sitemap.xml';
 
   // With the unmanaged file we just get a filename back.
   $filename = file_unmanaged_save_data($data, $destination, FILE_EXISTS_REPLACE);
+
+  if ($filename) {
+    $url = file_create_url($filename);
+    $_SESSION['file_example_default_file'] = $filename;
+    backdrop_set_message(
+      t('Saved file as %filename (accessible via !url, uri=<span id="uri">@uri</span>)',
+        array(
+          '%filename' => $filename,
+          '@uri' => $filename,
+          '!url' => l(t('this URL'), $url),
+        )
+      )
+    );
+  }
+  else {
+    backdrop_set_message(t('Failed to save the file'), 'error');
+  }
+}*/
+
+
+/**
+ * Submit handler to write an unmanaged file.
+ *
+ * The key functions used here are:
+ * - file_unmanaged_save_data(), which takes a buffer and saves it to a named
+ *   file, but does not create any kind of tracking record in the database.
+ *   This example uses FILE_EXISTS_REPLACE for the third argument, meaning
+ *   that if there's an existing file at this location, it should be replaced.
+ * - file_create_url(), which converts a URI in the form public://junk.txt or
+ *   private://something/test.txt into a URL like
+ *   http://example.com/sites/default/files/junk.txt.
+ */
+function create_sitemap($data = array()) {
+
+  $destination = 'public://sitemap.xml';
+
+  $output.= "<?xml version='1.0' encoding='UTF-8' ?>\n";
+  $output.= " <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>\n";
+
+  foreach ($data as $value) {
+    $output.= "   <url>\n";
+    $output.= "     <loc>".$value['loc']."</loc>\n";
+    $output.= "     <lastmod>".$value['lastmod']."</lastmod>\n";
+    $output.= "     <changefreq>".$value['changefreq']."</changefreq>\n";
+    $output.= "     <priority>".$value['priority']."</priority>\n";
+    $output.= "   </url>\n";
+    $output.= "\n";
+  }
+
+  $output.= " </urlset>\n";
+
+  // With the unmanaged file we just get a filename back.
+  $filename = file_unmanaged_save_data($output, $destination, FILE_EXISTS_REPLACE);
 
   if ($filename) {
     $url = file_create_url($filename);

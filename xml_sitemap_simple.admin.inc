@@ -11,7 +11,7 @@
 function xml_sitemap_simple_admin_node_form($form, &$form_state){
 
   // setting data nodes
-  $config_nodes = config_get('xml_sitemap_simple.settings', 'nodes');
+  $config_nodes = config_get('xml_sitemap_simple.settings', 'node');
 
  	$form = array();
 
@@ -26,18 +26,24 @@ function xml_sitemap_simple_admin_node_form($form, &$form_state){
   // loop a traves de todos los tipos de nodos
  	foreach ($node_types as $node_type) {
 
-		// valores por defecto
-    if(isset($config_nodes[$node_type])){
+		// default values
+    if(!empty($config_nodes[$node_type])){
+      // if exists config values
       $valorActiveDefault = $config_nodes[$node_type]['active'];
       $valorPriorityDefault = $config_nodes[$node_type]['priority'];
       $valorFrequencyDefault = $config_nodes[$node_type]['frequency'];
+    } else{
+      // if not exist config values
+      $valorActiveDefault = 0;
+      $valorPriorityDefault = 0.5;
+      $valorFrequencyDefault = 'monthly';
     }
 
+
     // construimos el formulario
-    $form[$node_type."_active"] = create_checkbox_element($node_type, $valorActiveDefault);		
+    $form[$node_type."_active"] = create_checkbox_element($node_type, $valorActiveDefault);
 		$form[$node_type."_priority"] = create_number_element($node_type."_active", $valorPriorityDefault);
     $form[$node_type."_frequency"] = create_frequency_element($node_type."_active", $valorFrequencyDefault);
-
  	};
 
 
@@ -62,7 +68,7 @@ function xml_sitemap_simple_admin_node_form($form, &$form_state){
 function xml_sitemap_simple_admin_terms_form($form, &$form_state){
 
   // setting data nodes
-  $config_vocabularies = config_get('xml_sitemap_simple.settings', 'vocabularies');
+  $config_vocabularies = config_get('xml_sitemap_simple.settings', 'taxonomy_term');
 
   $form = array();
   $form['description'] = array(
@@ -80,10 +86,15 @@ function xml_sitemap_simple_admin_terms_form($form, &$form_state){
 
     
     // valores por defecto
-    if(isset($config_vocabularies[$vocabulario->machine_name])){
+    if(!empty($config_vocabularies[$vocabulario->machine_name])){
       $valorActiveDefault = $config_vocabularies[$vocabulario->machine_name]['active'];
       $valorPriorityDefault = $config_vocabularies[$vocabulario->machine_name]['priority'];
       $valorFrequencyDefault = $config_vocabularies[$vocabulario->machine_name]['frequency'];
+    } else {
+      // if not exist config values
+      $valorActiveDefault = 0;
+      $valorPriorityDefault = 0.5;
+      $valorFrequencyDefault = 'monthly';
     }
 
     // construimos el formulario
@@ -115,8 +126,6 @@ function xml_sitemap_simple_admin_views_form($form, &$form_state){
   // setting data nodes
   $config_views = config_get('xml_sitemap_simple.settings', 'views');
 
-  dpm($config_views);
-
   $views_pages = xml_sitemap_simple_get_views_pages();
  
   $form = array();
@@ -136,6 +145,11 @@ function xml_sitemap_simple_admin_views_form($form, &$form_state){
         $valorActiveDefault = $config_views[$name_view]['active'];
         $valorPriorityDefault = $config_views[$name_view]['priority'];
         $valorFrequencyDefault = $config_views[$name_view]['frequency'];
+      } else {
+        // if not exist config values
+        $valorActiveDefault = 0;
+        $valorPriorityDefault = 0.5;
+        $valorFrequencyDefault = 'monthly';
       }
  
       $form[$name_view."_active"] = array(
@@ -266,9 +280,6 @@ function xml_sitemap_simple_admin_terms_form_submit($form, &$form_state){
  *  @param array $form_state
  */
 function xml_sitemap_simple_admin_views_form_submit($form, &$form_state){
-
-  dpm($form_state['values']);
-
   
   $values = $form_state['values'];
 
@@ -502,6 +513,8 @@ function create_checkbox_element($title, $valorActiveDefault = 0){
  */
 function create_number_element($activeElement, $valorActiveDefault = 0.5){
 
+
+
   $value['#type'] = 'number';
   $value['#description'] = t('Priority');
   $value['#min'] = 0;
@@ -521,7 +534,7 @@ function create_number_element($activeElement, $valorActiveDefault = 0.5){
 /**
  * 
  */
-function create_frequency_element($activeElement, $valorActiveDefault = 'monthly'){
+function create_frequency_element($activeElement, $valorActiveDefault){
 
   $value['#type'] = 'select';
   $value['#description'] = t('Change frequency');

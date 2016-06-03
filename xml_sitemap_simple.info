@@ -1,10 +1,11 @@
 name = XML sitemap simple
 description = Creates an XML sitemap conforming to the sitemaps.org protocol.
-dependencies[] = block
 package = XML sitemap simple
 ;version = BACKDROP_VERSION
 backdrop = 1.x
 
 
+;dependencies[] = block
+
 ; url admin
-configure = admin/config/system/sitemap_simple
+configure = admin/config/search/sitemap_simple

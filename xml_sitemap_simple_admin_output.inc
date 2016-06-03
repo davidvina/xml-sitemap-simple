@@ -13,7 +13,6 @@ function xml_sitemap_simple_admin_output_form($form, $form_state) {
   
   // ordenamos array
   $sitemap_data = array_orderby($sitemap_data, 'priority', SORT_DESC, 'lastmod', SORT_DESC);
-  dpm($sitemap_data);
 
   create_sitemap($sitemap_data);
 

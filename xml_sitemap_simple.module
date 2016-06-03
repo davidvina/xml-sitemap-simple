@@ -6,18 +6,49 @@
 
 /**
  * Implements hook_help().
+ *
+ * By implementing hook_help(), a module can make documentation available to the user for the module as a whole, or for specific paths. 
  * 
  */
 function xml_sitemap_simple_help($path, $arg) {
-  if ($path == 'admin/help#base_meta') {
-    return t('Base Meta module provides custom page title and meta tags for search engines.');
+
+  switch ($path) {
+    case 'admin/help#xml_sitemap_simple':
+      return t('XML Sitemap Simple module creates an XML sitemap conforming to the sitemaps.org protocol.');
+    /*
+    case 'admin/structure/block':
+      return '<p>' . t('This page provides a drag-and-drop interface for assigning a block to a region, and for controlling the order of blocks within regions. Since not all themes implement the same regions, or display regions in the same way, blocks are positioned on a per-theme basis. Remember that your changes will not be saved until you click the <em>Save blocks</em> button at the bottom of the page.') . '</p>';
+    */
   }
 }
+
+
+/**
+ * Implements hook_permission().
+ *
+ * This hook can supply permissions that the module defines, so that they can be selected on the user permissions page and used to grant or restrict access to actions the module performs.
+ *
+ */
+function xml_sitemap_simple_permission() {
+  return array(
+    'administer XML Sitemap Simple settings' => array(
+      'title' => t('Administer Base Meta settings')
+    ),
+    /*
+    'edit base meta tags' => array(
+      'title' => t('Edit Base Meta tags')
+    ),*/
+  );
+}
+
 
 /**
  * Implements hook_menu().
  *
- * Provides a default page to explain what this module does.
+ * hook that register paths in order to define how URL requests are handled
+ *
+ * https://api.backdropcms.org/api/backdrop/core!modules!system!system.api.php/function/hook_menu/1
+ *
  */
 function xml_sitemap_simple_menu() {
 
@@ -28,10 +59,10 @@ function xml_sitemap_simple_menu() {
     'title' => 'XML Sitemap Simple',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('xml_sitemap_simple_admin_node_form'),
-    'access callback' => TRUE,
-    'description' => 'XML Sitemap Simple module settings. Node',
-  //  'access callback' => 'user_access',
-  //  'access arguments' => array('administer base meta settings'),
+  //  'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings.',
+    'access callback' => 'user_access',
+    'access arguments' => array('administer XML Sitemap Simple settings'),
     'file' => 'xml_sitemap_simple.admin.inc',
     'type' => MENU_NORMAL_ITEM,
   );
@@ -39,11 +70,11 @@ function xml_sitemap_simple_menu() {
     'title' => 'Node Pages',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('xml_sitemap_simple_admin_node_form'),
-    'access callback' => TRUE,
+  //  'access callback' => TRUE,
     'description' => 'XML Sitemap Simple module settings: node',
     'type' => MENU_DEFAULT_LOCAL_TASK,
-  //  'access callback' => 'user_access',
-  //  'access arguments' => array('administer base meta settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer XML Sitemap Simple settings'),
     'file' => 'xml_sitemap_simple.admin.inc',
     'weight' => 1,
   );
@@ -51,26 +82,31 @@ function xml_sitemap_simple_menu() {
     'title' => 'Taxonomy Pages',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('xml_sitemap_simple_admin_terms_form'),
-    'access callback' => TRUE,
+  //  'access callback' => TRUE,
     'description' => 'XML Sitemap Simple module settings: taxonomy terms',
     'type' => MENU_LOCAL_TASK,
-  //  'access callback' => 'user_access',
-  //  'access arguments' => array('administer base meta settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer XML Sitemap Simple settings'),
     'file' => 'xml_sitemap_simple.admin.inc',
     'weight' => 2,
   );
+
+  /*
   $items['admin/config/search/sitemap_simple/views'] = array(
     'title' => 'Views Pages',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('xml_sitemap_simple_admin_views_form'),
-    'access callback' => TRUE,
-    'description' => 'XML Sitemap Simple module settings:views',
+  //  'access callback' => TRUE,
+    'description' => 'XML Sitemap Simple module settings: views',
     'type' => MENU_LOCAL_TASK,
-  //  'access callback' => 'user_access',
-  //  'access arguments' => array('administer base meta settings'),
+    'access callback' => 'user_access',
+    'access arguments' => array('administer XML Sitemap Simple settings'),
     'file' => 'xml_sitemap_simple.admin.inc',
     'weight' => 3,
   );
+
+  */
+
   /*
   $items['admin/config/search/sitemap_simple/menus'] = array(
     'title' => 'Menus',
@@ -90,9 +126,12 @@ function xml_sitemap_simple_menu() {
     'title' => 'Sitemap output',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('xml_sitemap_simple_admin_output_form'),
-    'access callback' => TRUE,
-    'access arguments' => array('administer site configuration'),
+    'description' => 'XML Sitemap Simple module settings: views',
+    'type' => MENU_LOCAL_TASK,
+    'access callback' => 'user_access',
+    'access arguments' => array('administer XML Sitemap Simple settings'),
     'file' => 'xml_sitemap_simple_admin_output.inc',
+    'weight' => 4,
   );
 
 
@@ -110,36 +149,29 @@ function xml_sitemap_simple_menu() {
 }
 
 
-
 /**
- * Implements hook_entity_property_info
+ * Implements hook_config_info().
+ *
+ * Provides a list of configuration prefixes for describing configuration files
+ * This hook may be used to expose individual configuration files in the UI for exporting.
  */
-function xml_sitemap_simple_entity_property_info() {
-  $info = array();
-  $properties = &$info['node']['properties'];
-
-  $properties['nid'] = array(
-    'label' => t("Content ID"), 
-    'type' => 'integer', 
-    'description' => t("The unique content ID."),
+function xml_sitemap_simple_config_info() {
+  $prefixes['xml_sitemap_simple.settings'] = array(
+    'label' => t('XML Sitemap simple settings'),
+    'group' => t('Configuration'),
   );
-  return $info;
+  
+  return $prefixes;
 }
-
-
-
-
-
 
 
 /**
  * Implements hook_form_alter().
  *
- * Adds fieldset to the node create/edit form as topmost vertical tab.
+ * Adds fieldset to the node and term create/edit form as topmost vertical tab.
  *
  */
 function xml_sitemap_simple_form_alter(&$form, $form_state, $form_id) {
-
 
 
   if (
@@ -639,11 +671,14 @@ function array_orderby() {
  *   http://example.com/sites/default/files/junk.txt.
  */
 function create_sitemap($data = array()) {
+  global $base_url;
+  $path_module = $base_url."/".backdrop_get_path('module', 'xml_sitemap_simple');
 
   $destination = 'public://sitemap.xml';
 
   $output.= "<?xml version='1.0' encoding='UTF-8' ?>\n";
   $output.= " <urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>\n";
+  $output.= " <?xml-stylesheet href='".$path_module."/xsl/xml-sitemap.xsl' type='text/xsl' ?>\n";
 
   foreach ($data as $value) {
     $output.= "   <url>\n";
